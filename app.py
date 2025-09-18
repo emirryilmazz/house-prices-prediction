@@ -1,4 +1,4 @@
-import pickle
+import joblib
 from pathlib import Path
 
 import numpy as np
@@ -16,59 +16,27 @@ st.set_page_config(
 
 
 @st.cache_resource(show_spinner=False)
-def load_model_and_scaler(model_path: Path):
-    with model_path.open("rb") as f:
-        model = pickle.load(f)
-    return model
+def load_pipeline(pipeline_path: Path):
+    return joblib.load(pipeline_path)
 
 
 def get_feature_columns():
-    # Order must match training feature order (df.info() minus target `price`)
-    numeric_columns = [
+    # Pipeline için gerekli sütunlar
+    return [
         "bedrooms",
-        "bathrooms",
+        "bathrooms", 
         "sqft_living",
         "sqft_lot",
         "floors",
+        "waterfront",
+        "view",
+        "condition",
         "sqft_above",
         "sqft_basement",
         "age",
         "sqft_per_floor",
+        "city_grouped"
     ]
-
-    city_columns = [
-        "city_Auburn",
-        "city_Bellevue",
-        "city_Federal Way",
-        "city_Issaquah",
-        "city_Kenmore",
-        "city_Kent",
-        "city_Kirkland",
-        "city_Maple Valley",
-        "city_Other",
-        "city_Redmond",
-        "city_Renton",
-        "city_Sammamish",
-        "city_Seattle",
-        "city_Shoreline",
-        "city_Snoqualmie",
-        "city_Woodinville",
-    ]
-
-    view_columns = [f"view_{i}" for i in range(5)]  # 0..4
-
-    condition_columns = [
-        "condition_3",
-        "condition_4",
-        "condition_5",
-    ]
-
-    waterfront_columns = [
-        "waterfront_False",
-        "waterfront_True",
-    ]
-
-    return numeric_columns + city_columns + view_columns + condition_columns + waterfront_columns
 
 
 def make_input_dataframe(
@@ -85,51 +53,24 @@ def make_input_dataframe(
     condition_score: int,
     is_waterfront: bool,
 ):
-    columns = get_feature_columns()
-
-    # Start with all zeros / False
-    data = {col: 0 for col in columns}
-
-    # Numeric features
-    data["bedrooms"] = float(bedrooms)
-    data["bathrooms"] = float(bathrooms)
-    data["sqft_living"] = int(sqft_living)
-    data["sqft_lot"] = int(sqft_lot)
-    data["floors"] = float(floors)
-    data["sqft_above"] = int(sqft_above)
-    data["sqft_basement"] = int(sqft_basement)
-    data["age"] = int(age)
-    data["sqft_per_floor"] = (
-        float(sqft_living) / float(floors) if float(floors) > 0 else float(sqft_living)
-    )
-
-    # One-hot: city
-    city_key = f"city_{city}"
-    if city_key in data:
-        data[city_key] = True
-    else:
-        # Fallback to Other if unseen
-        data["city_Other"] = True
-
-    # One-hot: view 0..4
-    view_key = f"view_{int(view_score)}"
-    if view_key in data:
-        data[view_key] = True
-
-    # One-hot: condition 3/4/5
-    cond_key = f"condition_{int(condition_score)}"
-    if cond_key in data:
-        data[cond_key] = True
-
-    # One-hot: waterfront True/False
-    data["waterfront_True"] = bool(is_waterfront)
-    data["waterfront_False"] = not bool(is_waterfront)
-
-    df = pd.DataFrame([data], columns=columns)
-    # Ensure bool columns are bool dtype, numeric remain numeric
-    bool_cols = [c for c in df.columns if c.startswith("city_") or c.startswith("view_") or c.startswith("condition_") or c.startswith("waterfront_")]
-    df[bool_cols] = df[bool_cols].astype(bool)
-    return df
+    # Pipeline için basit format
+    data = {
+        "bedrooms": float(bedrooms),
+        "bathrooms": float(bathrooms),
+        "sqft_living": int(sqft_living),
+        "sqft_lot": int(sqft_lot),
+        "floors": float(floors),
+        "waterfront": 1 if is_waterfront else 0,  # bool -> int
+        "view": int(view_score),
+        "condition": int(condition_score),
+        "sqft_above": int(sqft_above),
+        "sqft_basement": int(sqft_basement),
+        "age": int(age),
+        "sqft_per_floor": float(sqft_living) / float(floors) if float(floors) > 0 else float(sqft_living),
+        "city_grouped": city
+    }
+    
+    return pd.DataFrame([data])
 
 
 def format_currency(value: float) -> str:
@@ -143,13 +84,13 @@ def main():
     st.title("🏠 House Price Predictor")
     st.caption("Basit ve modern bir arayüz ile modelinizi kullanın.")
 
-    model_path = Path("model") / "model.pkl"
-    if not model_path.exists():
-        st.error("Model dosyası bulunamadı: model/model.pkl")
+    pipeline_path = Path("house_price_pipeline.pkl")
+    if not pipeline_path.exists():
+        st.error("Pipeline dosyası bulunamadı: house_price_pipeline.pkl")
         st.stop()
 
-    with st.spinner("Model yükleniyor..."):
-        model = load_model_and_scaler(model_path)
+    with st.spinner("Pipeline yükleniyor..."):
+        pipeline = load_pipeline(pipeline_path)
 
     st.subheader("Girdi Bilgileri")
 
@@ -173,20 +114,20 @@ def main():
 
         city_options = [
             "Auburn",
-            "Bellevue",
+            "Bellevue", 
+            "Burien",
             "Federal Way",
             "Issaquah",
-            "Kenmore",
             "Kent",
             "Kirkland",
             "Maple Valley",
+            "Mercer Island",
             "Other",
             "Redmond",
             "Renton",
             "Sammamish",
             "Seattle",
             "Shoreline",
-            "Snoqualmie",
             "Woodinville",
         ]
         c3, c4, c5 = st.columns(3)
@@ -219,9 +160,8 @@ def main():
             )
 
             
-            # Model tahmin yap (normal scale'de)
-            y_pred = model.predict(X)
-            pred = float(np.array(y_pred).ravel()[0])
+            # Pipeline ile tahmin yap
+            pred = pipeline.predict(X)[0]
 
             st.success("Tahmin Başarılı")
             st.metric(label="Tahmini Fiyat", value=format_currency(pred))
