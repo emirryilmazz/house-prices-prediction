@@ -16,9 +16,16 @@ st.set_page_config(
 
 
 @st.cache_resource(show_spinner=False)
-def load_model(model_path: Path):
+def load_model_and_scaler(model_path: Path):
     with model_path.open("rb") as f:
-        return pickle.load(f)
+        data = pickle.load(f)
+    
+    # Yeni format: dict içinde model ve scaler
+    if isinstance(data, dict):
+        return data['model'], data['scaler']
+    else:
+        # Eski format: sadece model
+        return data, None
 
 
 def get_feature_columns():
@@ -148,7 +155,7 @@ def main():
         st.stop()
 
     with st.spinner("Model yükleniyor..."):
-        model = load_model(model_path)
+        model, scaler = load_model_and_scaler(model_path)
 
     st.subheader("Girdi Bilgileri")
 
@@ -217,8 +224,17 @@ def main():
                 is_waterfront=bool(is_waterfront),
             )
 
-            y_pred = model.predict(X)
-            pred = float(np.array(y_pred).ravel()[0])
+            # Scaler varsa kullan
+            if scaler is not None:
+                X_scaled = scaler.transform(X)
+            else:
+                X_scaled = X
+            
+            # Model tahmin yap (log scale'de)
+            y_pred_log = model.predict(X_scaled)
+            
+            # Log transformation'ı geri al (expm1 = exp(x) - 1)
+            pred = float(np.expm1(np.array(y_pred_log).ravel()[0]))
 
             st.success("Tahmin Başarılı")
             st.metric(label="Tahmini Fiyat", value=format_currency(pred))

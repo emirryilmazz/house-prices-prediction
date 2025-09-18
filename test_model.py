@@ -7,7 +7,14 @@ def load_model():
     """Modeli yükle"""
     model_path = Path("model") / "model.pkl"
     with model_path.open("rb") as f:
-        return pickle.load(f)
+        data = pickle.load(f)
+    
+    # Yeni format: dict içinde model ve scaler
+    if isinstance(data, dict):
+        return data['model'], data['scaler']
+    else:
+        # Eski format: sadece model
+        return data, None
 
 def create_sample_data():
     """Örnek veri oluştur - modelinizin beklediği formatta"""
@@ -51,18 +58,32 @@ def create_sample_data():
 def main():
     print("Model yükleniyor...")
     try:
-        model = load_model()
+        model, scaler = load_model()
         print("✅ Model başarıyla yüklendi")
+        print(f"✅ Scaler: {'Mevcut' if scaler is not None else 'Yok'}")
         
         print("\nÖrnek veri oluşturuluyor...")
         X = create_sample_data()
         print(f"✅ Veri boyutu: {X.shape}")
         
         print("\nTahmin yapılıyor...")
-        prediction = model.predict(X)
-        predicted_price = float(np.array(prediction).ravel()[0])
         
-        print(f"🏠 Tahmini fiyat: ${predicted_price:,.0f}")
+        # Scaler varsa kullan
+        if scaler is not None:
+            X_scaled = scaler.transform(X)
+            print("✅ Veriler scaler ile normalize edildi")
+        else:
+            X_scaled = X
+            print("⚠️  Scaler yok, ham veri kullanılıyor")
+        
+        # Model tahmin yap (log scale'de)
+        prediction_log = model.predict(X_scaled)
+        
+        # Log transformation'ı geri al (expm1 = exp(x) - 1)
+        predicted_price = float(np.expm1(np.array(prediction_log).ravel()[0]))
+        
+        print(f"🏠 Tahmini fiyat (log scale): {prediction_log[0]:.3f}")
+        print(f"🏠 Tahmini fiyat (orijinal): ${predicted_price:,.0f}")
         
         print("\nKullanılan özellikler:")
         print("- Yatak odası: 3")
