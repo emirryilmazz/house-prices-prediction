@@ -18,14 +18,8 @@ st.set_page_config(
 @st.cache_resource(show_spinner=False)
 def load_model_and_scaler(model_path: Path):
     with model_path.open("rb") as f:
-        data = pickle.load(f)
-    
-    # Yeni format: dict içinde model ve scaler
-    if isinstance(data, dict):
-        return data['model'], None
-    else:
-        # Eski format: sadece model
-        return data, None
+        model = pickle.load(f)
+    return model
 
 
 def get_feature_columns():
@@ -155,7 +149,7 @@ def main():
         st.stop()
 
     with st.spinner("Model yükleniyor..."):
-        model, scaler = load_model_and_scaler(model_path)
+        model = load_model_and_scaler(model_path)
 
     st.subheader("Girdi Bilgileri")
 
