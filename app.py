@@ -84,7 +84,7 @@ def main():
     st.title("🏠 House Price Predictor")
     st.caption("Basit ve modern bir arayüz ile modelinizi kullanın.")
 
-    pipeline_path = Path("pipe.pkl")
+    pipeline_path = Path("model/pipe.pkl")
     if not pipeline_path.exists():
         st.error("Pipeline dosyası bulunamadı: pipe.pkl")
         st.stop()
