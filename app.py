@@ -22,7 +22,7 @@ def load_model_and_scaler(model_path: Path):
     
     # Yeni format: dict içinde model ve scaler
     if isinstance(data, dict):
-        return data['model'], data['scaler']
+        return data['model'], None
     else:
         # Eski format: sadece model
         return data, None
@@ -224,14 +224,9 @@ def main():
                 is_waterfront=bool(is_waterfront),
             )
 
-            # Scaler varsa kullan
-            if scaler is not None:
-                X_scaled = scaler.transform(X)
-            else:
-                X_scaled = X
             
             # Model tahmin yap (normal scale'de)
-            y_pred = model.predict(X_scaled)
+            y_pred = model.predict(X)
             pred = float(np.array(y_pred).ravel()[0])
 
             st.success("Tahmin Başarılı")
