@@ -76,14 +76,11 @@ def main():
             X_scaled = X
             print("⚠️  Scaler yok, ham veri kullanılıyor")
         
-        # Model tahmin yap (log scale'de)
-        prediction_log = model.predict(X_scaled)
+        # Model tahmin yap (normal scale'de)
+        prediction = model.predict(X_scaled)
+        predicted_price = float(np.array(prediction).ravel()[0])
         
-        # Log transformation'ı geri al (expm1 = exp(x) - 1)
-        predicted_price = float(np.expm1(np.array(prediction_log).ravel()[0]))
-        
-        print(f"🏠 Tahmini fiyat (log scale): {prediction_log[0]:.3f}")
-        print(f"🏠 Tahmini fiyat (orijinal): ${predicted_price:,.0f}")
+        print(f"🏠 Tahmini fiyat: ${predicted_price:,.0f}")
         
         print("\nKullanılan özellikler:")
         print("- Yatak odası: 3")

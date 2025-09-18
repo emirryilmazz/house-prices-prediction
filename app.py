@@ -230,11 +230,9 @@ def main():
             else:
                 X_scaled = X
             
-            # Model tahmin yap (log scale'de)
-            y_pred_log = model.predict(X_scaled)
-            
-            # Log transformation'ı geri al (expm1 = exp(x) - 1)
-            pred = float(np.expm1(np.array(y_pred_log).ravel()[0]))
+            # Model tahmin yap (normal scale'de)
+            y_pred = model.predict(X_scaled)
+            pred = float(np.array(y_pred).ravel()[0])
 
             st.success("Tahmin Başarılı")
             st.metric(label="Tahmini Fiyat", value=format_currency(pred))
